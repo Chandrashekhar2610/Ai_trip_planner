@@ -1,0 +1,455 @@
+{% extends "base.html" %}
+
+{% block title %}{{ trip.title }} | WanderAI Trip Planner{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
+
+    <!-- Top Breadcrumbs & Back -->
+    <div class="flex items-center justify-between mb-4 text-xs font-semibold text-slate-500">
+        <a href="{{ url_for('index') }}" class="hover:text-sky-600 flex items-center gap-1 transition">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Trip Planner
+        </a>
+        <span class="text-slate-400">Created: {{ trip.created_at[:10] }}</span>
+    </div>
+
+    <!-- Main Trip Header Card -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm mb-8">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div>
+                <div class="flex flex-wrap items-center gap-2 mb-2">
+                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-sky-100 text-sky-800">
+                        <i data-lucide="calendar" class="w-3.5 h-3.5"></i> {{ trip.days|length }} Days
+                    </span>
+                    {% if trip.request %}
+                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700">
+                        <i data-lucide="compass" class="w-3.5 h-3.5"></i> {{ trip.request.travel_style }}
+                    </span>
+                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
+                        <i data-lucide="wallet" class="w-3.5 h-3.5"></i> {{ trip.request.budget_tier }} Budget
+                    </span>
+                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700">
+                        <i data-lucide="users" class="w-3.5 h-3.5"></i> {{ trip.request.travelers_count }} Traveler(s)
+                    </span>
+                    {% endif %}
+                </div>
+                <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mb-2">
+                    {{ trip.title }}
+                </h1>
+                <p class="text-sm sm:text-base text-slate-500 flex items-center gap-1.5">
+                    <i data-lucide="map-pin" class="w-4 h-4 text-sky-600"></i> {{ trip.destination }}
+                </p>
+            </div>
+
+            <!-- Action Buttons Group -->
+            <div class="flex flex-wrap items-center gap-2.5 print:hidden">
+                <!-- AI Assistant Trigger -->
+                <button type="button" onclick="toggleChatDrawer()" 
+                    class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 text-white font-bold text-xs shadow-md shadow-sky-500/20 hover:shadow-sky-500/30 transition-all hover:scale-105">
+                    <i data-lucide="bot" class="w-4 h-4"></i> AI Concierge
+                </button>
+
+                <!-- Export Calendar (.ics) -->
+                <a href="{{ url_for('export_ics', trip_id=trip.id) }}" 
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-sm transition">
+                    <i data-lucide="calendar-plus" class="w-4 h-4 text-sky-600"></i> Sync Calendar
+                </a>
+
+                <!-- Export Markdown (.md) -->
+                <a href="{{ url_for('export_markdown', trip_id=trip.id) }}" 
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-sm transition">
+                    <i data-lucide="file-text" class="w-4 h-4 text-indigo-600"></i> Markdown
+                </a>
+
+                <!-- Print / Save PDF -->
+                <button type="button" onclick="window.print()" 
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-sm transition">
+                    <i data-lucide="printer" class="w-4 h-4 text-slate-600"></i> Print / PDF
+                </button>
+
+                <!-- Delete Trip -->
+                <button type="button" onclick="confirmDeleteTrip('{{ trip.id }}')" 
+                    class="inline-flex items-center p-2.5 rounded-xl border border-red-100 bg-red-50 hover:bg-red-100 text-red-600 text-xs transition" title="Delete Trip">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Overview Text -->
+        {% if trip.overview %}
+        <div class="mt-6 pt-6 border-t border-slate-100">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Trip Overview</h2>
+            <p class="text-sm sm:text-base text-slate-600 leading-relaxed">{{ trip.overview }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Quick Info Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100 text-xs">
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                <div class="font-bold text-slate-700 flex items-center gap-1.5 mb-1">
+                    <i data-lucide="sun" class="w-4 h-4 text-amber-500"></i> Best Season
+                </div>
+                <div class="text-slate-600">{{ trip.best_season_to_visit or 'Spring / Autumn' }}</div>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                <div class="font-bold text-slate-700 flex items-center gap-1.5 mb-1">
+                    <i data-lucide="coins" class="w-4 h-4 text-emerald-500"></i> Local Currency
+                </div>
+                <div class="text-slate-600">{{ trip.local_currency_info or 'Standard cards accepted' }}</div>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                <div class="font-bold text-slate-700 flex items-center gap-1.5 mb-1">
+                    <i data-lucide="phone-call" class="w-4 h-4 text-rose-500"></i> Emergency
+                </div>
+                <div class="text-slate-600">{{ trip.emergency_contacts or 'Police/Medical: 112' }}</div>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                <div class="font-bold text-slate-700 flex items-center gap-1.5 mb-1">
+                    <i data-lucide="train" class="w-4 h-4 text-sky-500"></i> Transit Advice
+                </div>
+                <div class="text-slate-600">{{ trip.transport_tips or 'Metro and walking recommended' }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="border-b border-slate-200 mb-8 print:hidden">
+        <nav class="flex space-x-8 text-sm font-bold" aria-label="Tabs">
+            <button onclick="switchTab('timeline')" id="tab-btn-timeline" 
+                class="tab-btn pb-4 px-1 border-b-2 border-sky-600 text-sky-600 flex items-center gap-2">
+                <i data-lucide="calendar" class="w-4 h-4"></i> Day-by-Day Itinerary
+            </button>
+            <button onclick="switchTab('map')" id="tab-btn-map" 
+                class="tab-btn pb-4 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2">
+                <i data-lucide="map" class="w-4 h-4"></i> Route Map
+            </button>
+            <button onclick="switchTab('budget')" id="tab-btn-budget" 
+                class="tab-btn pb-4 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2">
+                <i data-lucide="pie-chart" class="w-4 h-4"></i> Budget Breakdown
+            </button>
+            <button onclick="switchTab('packing')" id="tab-btn-packing" 
+                class="tab-btn pb-4 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2">
+                <i data-lucide="check-square" class="w-4 h-4"></i> Packing Checklist
+            </button>
+        </nav>
+    </div>
+
+    <!-- TAB 1: Day-by-Day Timeline -->
+    <div id="tab-content-timeline" class="tab-pane space-y-8">
+        {% for day in trip.days %}
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <!-- Day Header Banner -->
+            <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center font-black text-sky-400 text-lg">
+                        {{ day.day_number }}
+                    </div>
+                    <div>
+                        <span class="text-xs uppercase tracking-wider font-semibold text-sky-400">Day {{ day.day_number }}</span>
+                        <h2 class="text-xl font-bold">{{ day.theme }}</h2>
+                    </div>
+                </div>
+                {% if day.day_budget > 0 %}
+                <div class="text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300">
+                    Est. Day Cost: <span class="font-bold text-white">{{ trip.budget_breakdown.currency if trip.budget_breakdown else '$' }} {{ day.day_budget }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if day.summary %}
+            <div class="px-6 py-3 bg-sky-50/50 border-b border-sky-100 text-xs sm:text-sm text-sky-900 italic">
+                {{ day.summary }}
+            </div>
+            {% endif %}
+
+            <!-- Activities Timeline -->
+            <div class="p-6 space-y-6">
+                {% for act in day.activities %}
+                <div class="relative pl-6 sm:pl-8 border-l-2 border-sky-200 last:border-transparent pb-2 group">
+                    <!-- Timeline Dot -->
+                    <div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-white border-4 border-sky-600 group-hover:scale-125 transition-transform"></div>
+
+                    <!-- Activity Content Card -->
+                    <div class="bg-slate-50/70 hover:bg-slate-50 transition rounded-xl p-4 sm:p-5 border border-slate-200">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold 
+                                    {% if act.time_slot == 'Morning' %}bg-amber-100 text-amber-800
+                                    {% elif act.time_slot == 'Afternoon' %}bg-sky-100 text-sky-800
+                                    {% else %}bg-purple-100 text-purple-800{% endif %}">
+                                    {{ act.time_slot }}
+                                </span>
+                                <span class="text-xs font-semibold text-slate-500">{{ act.time }}</span>
+                            </div>
+
+                            {% if act.estimated_cost > 0 %}
+                            <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                                {{ trip.budget_breakdown.currency if trip.budget_breakdown else '$' }} {{ act.estimated_cost }}
+                            </span>
+                            {% else %}
+                            <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                Free Entry
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <h3 class="text-lg font-bold text-slate-900 mb-1">{{ act.title }}</h3>
+                        <p class="text-xs text-sky-700 font-medium flex items-center gap-1 mb-2">
+                            <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> {{ act.location_name }}
+                        </p>
+
+                        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed mb-3">
+                            {{ act.description }}
+                        </p>
+
+                        <!-- Pro Tip Banner -->
+                        {% if act.insider_tip %}
+                        <div class="mt-2 p-3 rounded-lg bg-amber-50/80 border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
+                            <i data-lucide="lightbulb" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+                            <div>
+                                <span class="font-bold">Insider Tip:</span> {{ act.insider_tip }}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Tags -->
+                        {% if act.tags %}
+                        <div class="flex flex-wrap gap-1.5 mt-3">
+                            {% for tag in act.tags %}
+                            <span class="text-[11px] font-medium px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-600">
+                                #{{ tag }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Day Meals -->
+                {% if day.meals %}
+                <div class="mt-6 pt-6 border-t border-slate-100">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                        <i data-lucide="utensils" class="w-4 h-4 text-slate-500"></i> Recommended Dining for Day {{ day.day_number }}
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {% for meal in day.meals %}
+                        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                            <div class="flex items-center justify-between text-xs mb-1">
+                                <span class="font-bold text-slate-800">{{ meal.meal_type }}</span>
+                                <span class="font-bold text-emerald-600">{{ trip.budget_breakdown.currency if trip.budget_breakdown else '$' }} {{ meal.estimated_cost }}</span>
+                            </div>
+                            <div class="font-semibold text-xs text-sky-700 mb-1">{{ meal.name }}</div>
+                            <div class="text-[11px] text-slate-500">{{ meal.description }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- TAB 2: Interactive Route Map -->
+    <div id="tab-content-map" class="tab-pane hidden">
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="map" class="w-5 h-5 text-sky-600"></i> Interactive Route Map
+                    </h2>
+                    <p class="text-xs text-slate-500">Numbered pins represent itinerary stops. Click any marker for spot details.</p>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                    <label for="map-day-filter" class="font-semibold text-slate-700">Filter Day:</label>
+                    <select id="map-day-filter" onchange="filterMapMarkers(this.value)" 
+                        class="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 font-medium">
+                        <option value="all">All Days</option>
+                        {% for day in trip.days %}
+                        <option value="{{ day.day_number }}">Day {{ day.day_number }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Leaflet Map Canvas -->
+            <div id="trip-map" class="w-full h-[550px] rounded-xl border border-slate-200 z-10 shadow-inner"></div>
+        </div>
+    </div>
+
+    <!-- TAB 3: Budget Breakdown -->
+    <div id="tab-content-budget" class="tab-pane hidden">
+        {% if trip.budget_breakdown %}
+        {% set b = trip.budget_breakdown %}
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+            <h2 class="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <i data-lucide="pie-chart" class="w-5 h-5 text-sky-600"></i> Estimated Budget Analysis
+            </h2>
+
+            <!-- Grand Total Highlight -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                <div class="bg-gradient-to-tr from-sky-600 to-indigo-600 text-white p-6 rounded-2xl shadow-md">
+                    <div class="text-xs uppercase tracking-wider font-semibold text-sky-200">Total Estimated Trip Budget</div>
+                    <div class="text-3xl sm:text-4xl font-extrabold mt-1">{{ b.currency }} {{ "{:,.2f}".format(b.grand_total) }}</div>
+                    <div class="text-xs text-sky-100 mt-2">Comprehensive estimate for {{ trip.days|length }} days</div>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-200 p-6 rounded-2xl">
+                    <div class="text-xs uppercase tracking-wider font-semibold text-slate-400">Average Daily Cost</div>
+                    <div class="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-1">{{ b.currency }} {{ "{:,.2f}".format(b.per_person_per_day) }}</div>
+                    <div class="text-xs text-slate-500 mt-2">Per person / per day</div>
+                </div>
+            </div>
+
+            <!-- Breakdown Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-600 mb-1">
+                        <i data-lucide="hotel" class="w-4 h-4 text-sky-600"></i> Accommodation
+                    </div>
+                    <div class="text-xl font-extrabold text-slate-900">{{ b.currency }} {{ "{:,.2f}".format(b.accommodation_total) }}</div>
+                </div>
+
+                <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-600 mb-1">
+                        <i data-lucide="utensils" class="w-4 h-4 text-amber-600"></i> Food & Dining
+                    </div>
+                    <div class="text-xl font-extrabold text-slate-900">{{ b.currency }} {{ "{:,.2f}".format(b.food_total) }}</div>
+                </div>
+
+                <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-600 mb-1">
+                        <i data-lucide="ticket" class="w-4 h-4 text-purple-600"></i> Activities
+                    </div>
+                    <div class="text-xl font-extrabold text-slate-900">{{ b.currency }} {{ "{:,.2f}".format(b.activities_total) }}</div>
+                </div>
+
+                <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-600 mb-1">
+                        <i data-lucide="train" class="w-4 h-4 text-emerald-600"></i> Local Transit
+                    </div>
+                    <div class="text-xl font-extrabold text-slate-900">{{ b.currency }} {{ "{:,.2f}".format(b.transport_total) }}</div>
+                </div>
+
+                <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-600 mb-1">
+                        <i data-lucide="shield-check" class="w-4 h-4 text-rose-600"></i> Reserve / Misc
+                    </div>
+                    <div class="text-xl font-extrabold text-slate-900">{{ b.currency }} {{ "{:,.2f}".format(b.miscellaneous_total) }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- TAB 4: Packing Checklist -->
+    <div id="tab-content-packing" class="tab-pane hidden">
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="check-square" class="w-5 h-5 text-sky-600"></i> Smart Packing Checklist
+                    </h2>
+                    <p class="text-xs text-slate-500">Tailored to {{ trip.destination }} for a {{ trip.days|length }}-day journey. Check items off as you pack!</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {% for category in trip.packing_list %}
+                {% set cat_idx = loop.index0 %}
+                <div class="bg-slate-50 rounded-xl border border-slate-200 p-5">
+                    <h3 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
+                        <i data-lucide="package" class="w-4 h-4 text-sky-600"></i> {{ category.category }}
+                    </h3>
+                    <ul class="space-y-2.5">
+                        {% for item in category.items %}
+                        <li class="flex items-start gap-2.5 text-xs text-slate-700">
+                            <input type="checkbox" id="pack-{{ cat_idx }}-{{ loop.index0 }}" 
+                                class="mt-0.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                                onchange="savePackingState('{{ trip.id }}')">
+                            <label for="pack-{{ cat_idx }}-{{ loop.index0 }}" class="cursor-pointer select-none">
+                                {{ item }}
+                            </label>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating AI Concierge Chat Drawer -->
+<div id="chat-drawer" class="fixed inset-y-0 right-0 max-w-md w-full bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 border-l border-slate-200 flex flex-col">
+    <!-- Chat Header -->
+    <div class="p-4 border-b border-slate-200 bg-gradient-to-r from-sky-600 to-indigo-600 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                <i data-lucide="bot" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-sm">AI Travel Concierge</h3>
+                <p class="text-[11px] text-sky-100">Trip Assistant for {{ trip.destination }}</p>
+            </div>
+        </div>
+        <button type="button" onclick="toggleChatDrawer()" class="p-1 rounded-lg hover:bg-white/10 text-white transition">
+            <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+    </div>
+
+    <!-- Suggested Quick Chips -->
+    <div class="p-3 bg-slate-50 border-b border-slate-200 flex flex-wrap gap-1.5 text-xs">
+        <button type="button" onclick="sendQuickPrompt('What if it rains during our trip?')" class="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-600 hover:border-sky-400 hover:text-sky-600 transition">
+            🌧️ Rainy day backups?
+        </button>
+        <button type="button" onclick="sendQuickPrompt('Suggest great vegetarian restaurants nearby')" class="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-600 hover:border-sky-400 hover:text-sky-600 transition">
+            🥗 Vegetarian food?
+        </button>
+        <button type="button" onclick="sendQuickPrompt('What is the best way to travel from the airport?')" class="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-600 hover:border-sky-400 hover:text-sky-600 transition">
+            🚇 Airport transit?
+        </button>
+        <button type="button" onclick="sendQuickPrompt('What are some hidden secret spots to visit?')" class="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-600 hover:border-sky-400 hover:text-sky-600 transition">
+            💎 Secret spots?
+        </button>
+    </div>
+
+    <!-- Chat Messages Container -->
+    <div id="chat-messages" class="flex-grow p-4 overflow-y-auto space-y-4 text-xs">
+        <div class="bg-sky-50 text-slate-800 p-3.5 rounded-2xl rounded-tl-none border border-sky-100 leading-relaxed">
+            👋 Hello! I am your AI concierge for your trip to <strong>{{ trip.destination }}</strong>. Ask me anything about restaurant reservations, transit hacks, hidden photography spots, or itinerary tweaks!
+        </div>
+    </div>
+
+    <!-- Chat Input Form -->
+    <div class="p-4 border-t border-slate-200 bg-white">
+        <form id="chat-form" onsubmit="handleChatSubmit(event, '{{ trip.id }}')" class="flex gap-2">
+            <input type="text" id="chat-input" placeholder="Ask a question about your trip..." 
+                class="flex-grow px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
+            <button type="submit" id="chat-submit-btn" class="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-sm transition">
+                <i data-lucide="send" class="w-4 h-4"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Serialized Trip Data for Leaflet Map -->
+<script id="trip-json" type="application/json">
+    {{ trip.to_dict()|tojson }}
+</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+    // Initialize Leaflet Map on load if map tab is active or preloaded
+    document.addEventListener("DOMContentLoaded", () => {
+        initTripMap();
+        loadPackingState('{{ trip.id }}');
+    });
+</script>
+{% endblock %}
